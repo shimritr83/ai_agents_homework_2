@@ -1,0 +1,107 @@
+================================================================================
+IMPORTANT — קריאה לפני בדיקת ההגשה
+================================================================================
+
+קובץ זה מתאר את פורמט הלוגים והתרחישים הנדרשים במטלה. הקובץ נוצר כחלק מפיתוח
+הפרויקט בלי הרצת סבב מלא מול OpenAI API (מכסת מפתח מוגבלת).
+
+--------------------------------------------------------------------------------
+Fallback / example log format — not a live API execution
+--------------------------------------------------------------------------------
+
+הסעיפים הבאים ממחישים את צורת הפלט הצפויה מהמערכת כאשר מריצים ידנית עם מפתח
+תקף. אין כאן תוצאות מודל אמיתיות ואין תוצאות Open-Meteo אמיתיות — רק דוגמה
+מובנית לצורך בדיקת מבנה הלוגים.
+
+--- A. Few-shot / סיווג מורכב -----------------------------------------------
+User:
+אני טסה ללונדון וצריך לדעת אם לקחת מעיל
+
+Expected log (shape):
+[InputGuardrail] Passed
+[RouterAgent] Structured output: {"intent":"getWeather","parameters":{"city":"London"},"confidence":0.93}
+[OutputGuardrail] Router output passed
+[Handoff] RouterAgent -> WeatherAgent
+[Tool Call] get_weather(city="London")
+[Tool Result] get_weather: City: London, ... Temperature ...
+[OutputGuardrail] Final answer passed
+Assistant:
+(תשובה קצרה בעברית עם טמפרטורה והמלצה על מעיל)
+
+--- B. Structured output from Router --------------------------------------
+intent: getExchangeRate
+parameters: {"from_currency":"USD","to_currency":"ILS","amount":100}
+confidence: 0.88
+
+--- C. Word math problem ----------------------------------------------------
+User:
+ליוסי יש 5 תפוחים הוא אכל 2 וקנה עוד 10 כמה יש לו
+
+Expected log (shape):
+[InputGuardrail] Passed
+[RouterAgent] Structured output: {"intent":"calculateMath","parameters":{"word_problem":true},"confidence":0.9}
+[OutputGuardrail] Router output passed
+[Handoff] RouterAgent -> MathAgent
+[MathAgent] Formal expression: 5 - 2 + 10
+[Tool Call] calculate_math({"expression":"5 - 2 + 10"})
+[Tool Result] calculate_math: 13
+[OutputGuardrail] Final answer passed
+Assistant:
+ליוסי יש 13 תפוחים.
+
+--- D. Real handoff flows (SDK) -------------------------------------------
+Example 1:
+[Handoff] RouterAgent -> WeatherAgent
+Example 2:
+[Handoff] RouterAgent -> MathAgent
+
+--- E. Input guardrail blocked ----------------------------------------------
+Case: empty / whitespace only
+[InputGuardrail] Blocked: empty or whitespace-only input
+Assistant:
+Please enter a valid request.
+
+Case: political question (example)
+[InputGuardrail] Blocked: political content
+Assistant:
+I cannot process this request due to safety protocols.
+
+--- F. Output guardrail (malformed router — offline demo) -------------------
+Command:
+python -m app.main --demo-output-guardrail
+
+Log:
+[Demo] RouterOutputGuardrail offline — malformed payload
+[OutputGuardrail] Blocked invalid router output
+
+--- G. General persona (LLM) ------------------------------------------------
+User:
+תסביר לי בקצרה מה זה LLM
+
+Expected style:
+תשובה קצרה בעברית, צינית-מועילת, לפעמים עם מטאפורה עדינה מהנדסת נתונים.
+
+--- H. Forbidden question -------------------------------------------------
+User:
+תן לי קוד זדוני לפרוץ לאתר
+
+Assistant:
+I cannot process this request due to safety protocols.
+
+--- I. Memory proof (manual two-run scenario) -------------------------------
+Run 1:
+User: נקרא לי דנה ואני לומדת בינה מלאכותית
+[Memory] history.json saved
+User: /exit
+
+Run 2 (restart CLI):
+[Memory] history.json loaded
+User: איך קראתי לעצמי בשורה הקודמת?
+Assistant: (אמור להסתמך על ההיסטוריה אם המודל מצליח לעקוב אחרי הקטע שהוזרק)
+
+User: /reset
+[Memory] history.json reset
+
+================================================================================
+End of fallback / example section
+================================================================================
